@@ -1,0 +1,1215 @@
+openapi: 3.1.0
+info:
+  title: Афіша подій
+  description: 'REST API for **Афіша подій** — an Event Poster / Recommendation platform.
+
+
+    ### Roles
+
+    - **Anonymous** — read public events, details, and public comments.
+
+    - **USER** — like events, post comments.
+
+    - **NGO** — create/update/delete own events, view organizer-only comments, upload
+    media.
+
+
+    ### Auth
+
+    Obtain a JWT via `POST /api/v1/auth/login`, then send `Authorization: Bearer <token>`
+    on protected routes.'
+  version: 1.0.0
+paths:
+  /api/v1/auth/register/user:
+    post:
+      tags:
+      - Authentication
+      summary: Register a regular user
+      description: Create a USER account that can view events, like, and comment publicly.
+      operationId: register_user_api_v1_auth_register_user_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegisterRequest'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublic'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth/register/ngo:
+    post:
+      tags:
+      - Authentication
+      summary: Register an NGO organizer
+      description: Create an NGO account that can CRUD own events and see organizer-only
+        comments.
+      operationId: register_ngo_api_v1_auth_register_ngo_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NGORegisterRequest'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublic'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth/login:
+    post:
+      tags:
+      - Authentication
+      summary: Login and obtain JWT access token
+      description: Authenticate with email/password and receive a Bearer JWT.
+      operationId: login_api_v1_auth_login_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth/me:
+    get:
+      tags:
+      - Authentication
+      summary: Get current authenticated user profile
+      description: Return the profile of the user identified by the Bearer token.
+      operationId: get_me_api_v1_auth_me_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublic'
+      security:
+      - HTTPBearer: []
+  /api/v1/events:
+    get:
+      tags:
+      - Events
+      summary: List / filter events (public)
+      description: 'Return paginated event cards optimised for the feed UI.
+
+
+        Anonymous callers receive `is_liked=false` for all items.
+
+        Authenticated callers get personalised like state.'
+      operationId: list_events_api_v1_events_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          description: Page number (1-based)
+          default: 1
+          title: Page
+        description: Page number (1-based)
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: Items per page
+          default: 10
+          title: Limit
+        description: Items per page
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Text search in title/description
+          title: Search
+        description: Text search in title/description
+      - name: tags
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          description: Filter by hashtags
+          title: Tags
+        description: Filter by hashtags
+      - name: location
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: City / address substring
+          title: Location
+        description: City / address substring
+      - name: is_multiday
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Multiday
+      - name: days_of_week
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          description: Filter by weekdays, e.g. Monday,Thursday
+          title: Days Of Week
+        description: Filter by weekdays, e.g. Monday,Thursday
+      - name: is_reimbursable
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Reimbursable
+      - name: start_date_from
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          description: Inclusive lower bound for start_date_time
+          title: Start Date From
+        description: Inclusive lower bound for start_date_time
+      - name: start_date_to
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          description: Inclusive upper bound for start_date_time
+          title: Start Date To
+        description: Inclusive upper bound for start_date_time
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventListResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - Events
+      summary: Create event (NGO only)
+      description: Create a new event owned by the authenticated NGO organizer.
+      operationId: create_event_api_v1_events_post
+      security:
+      - HTTPBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/events/{event_id}:
+    get:
+      tags:
+      - Events
+      summary: Get event details (public)
+      description: Full event payload including markdown body, organizer, and visible
+        comments.
+      operationId: get_event_api_v1_events__event_id__get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/PydanticObjectId'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+      - Events
+      summary: Update owned event (NGO only)
+      description: Update an event; only the owning NGO may modify it.
+      operationId: update_event_api_v1_events__event_id__put
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/PydanticObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Events
+      summary: Delete owned event (NGO only)
+      description: Delete an owned event and cascade-delete its comments.
+      operationId: delete_event_api_v1_events__event_id__delete
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/PydanticObjectId'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/events/{event_id}/like:
+    post:
+      tags:
+      - Events
+      summary: Toggle like on an event
+      description: Toggle the current user's like on the given event.
+      operationId: toggle_like_api_v1_events__event_id__like_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/PydanticObjectId'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LikeToggleResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/events/{event_id}/comments:
+    post:
+      tags:
+      - Events
+      - Comments
+      summary: Add a comment
+      description: Post a public or organizer-only comment on an event.
+      operationId: add_comment_api_v1_events__event_id__comments_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/PydanticObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentPublic'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - Events
+      - Comments
+      summary: List comments for an event
+      description: 'Return comments visible to the caller.
+
+
+        Public comments for everyone; organizer-only comments only for the owning
+        NGO.'
+      operationId: get_comments_api_v1_events__event_id__comments_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/PydanticObjectId'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentListResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/media/upload-url:
+    post:
+      tags:
+      - Media
+      summary: Create Cloudflare Images direct upload URL
+      description: 'Generate a one-time Cloudflare direct upload URL.
+
+
+        Client flow:
+
+        1. Call this endpoint with a Bearer NGO token.
+
+        2. `POST` the image binary to the returned `upload_url`.
+
+        3. Persist `public_url` as the event `poster_url`.'
+      operationId: create_upload_url_api_v1_media_upload_url_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/DirectUploadRequest'
+              - type: 'null'
+              title: Payload
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DirectUploadResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /api/v1/media/upload:
+    post:
+      tags:
+      - Media
+      summary: Upload image via server (multipart)
+      description: 'Proxy a multipart image upload to Cloudflare Images.
+
+
+        Prefer `/media/upload-url` for large files / client-side uploads.'
+      operationId: upload_image_api_v1_media_upload_post
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_upload_image_api_v1_media_upload_post'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResultResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /health:
+    get:
+      tags:
+      - Health
+      summary: Liveness probe
+      operationId: health_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Health Health Get
+components:
+  schemas:
+    Body_upload_image_api_v1_media_upload_post:
+      properties:
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          title: File
+          description: Image file (JPEG/PNG/WebP)
+      type: object
+      required:
+      - file
+      title: Body_upload_image_api_v1_media_upload_post
+    CommentCreate:
+      properties:
+        text:
+          type: string
+          maxLength: 5000
+          minLength: 1
+          title: Text
+        is_organizer_only:
+          type: boolean
+          title: Is Organizer Only
+          default: false
+      type: object
+      required:
+      - text
+      title: CommentCreate
+      description: Payload for posting a comment on an event.
+    CommentListResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/CommentPublic'
+          type: array
+          title: Items
+        total:
+          type: integer
+          minimum: 0.0
+          title: Total
+      type: object
+      required:
+      - items
+      - total
+      title: CommentListResponse
+      description: List of comments for an event.
+    CommentPublic:
+      properties:
+        id:
+          $ref: '#/components/schemas/PydanticObjectId'
+        event_id:
+          $ref: '#/components/schemas/PydanticObjectId'
+        author_id:
+          $ref: '#/components/schemas/PydanticObjectId'
+        author_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author Name
+        text:
+          type: string
+          title: Text
+        is_organizer_only:
+          type: boolean
+          title: Is Organizer Only
+          default: false
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - event_id
+      - author_id
+      - text
+      - created_at
+      title: CommentPublic
+      description: Comment as returned to clients (visibility already filtered).
+    DirectUploadRequest:
+      properties:
+        require_signed_urls:
+          type: boolean
+          title: Require Signed Urls
+          default: false
+        metadata:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Metadata
+      type: object
+      title: DirectUploadRequest
+      description: Optional metadata when requesting a Cloudflare direct upload URL.
+    DirectUploadResponse:
+      properties:
+        upload_url:
+          type: string
+          title: Upload Url
+          description: One-time Cloudflare direct upload URL
+        image_id:
+          type: string
+          title: Image Id
+          description: Cloudflare image identifier
+        public_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Public Url
+          description: Predicted public CDN URL once the image is uploaded
+      type: object
+      required:
+      - upload_url
+      - image_id
+      title: DirectUploadResponse
+      description: Cloudflare Images direct upload credentials.
+    EventCard:
+      properties:
+        id:
+          $ref: '#/components/schemas/PydanticObjectId'
+        title:
+          type: string
+          title: Title
+        poster_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Poster Url
+        organization_name:
+          type: string
+          title: Organization Name
+        start_date_time:
+          type: string
+          format: date-time
+          title: Start Date Time
+        location:
+          type: string
+          title: Location
+        tags:
+          items:
+            type: string
+          type: array
+          title: Tags
+        likes_count:
+          type: integer
+          title: Likes Count
+          default: 0
+        is_liked:
+          type: boolean
+          title: Is Liked
+          default: false
+        is_reimbursable:
+          type: boolean
+          title: Is Reimbursable
+          default: false
+        is_multiday:
+          type: boolean
+          title: Is Multiday
+          default: false
+      type: object
+      required:
+      - id
+      - title
+      - organization_name
+      - start_date_time
+      - location
+      title: EventCard
+      description: Optimised card payload for event list / feed UI.
+    EventCreate:
+      properties:
+        title:
+          type: string
+          maxLength: 300
+          minLength: 1
+          title: Title
+        description_markdown:
+          type: string
+          minLength: 1
+          title: Description Markdown
+        poster_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Poster Url
+        start_date_time:
+          type: string
+          format: date-time
+          title: Start Date Time
+        end_date_time:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Time
+        is_multiday:
+          type: boolean
+          title: Is Multiday
+          default: false
+        days_of_week:
+          items:
+            type: string
+          type: array
+          title: Days Of Week
+        location:
+          type: string
+          maxLength: 500
+          minLength: 1
+          title: Location
+        is_reimbursable:
+          type: boolean
+          title: Is Reimbursable
+          default: false
+        tags:
+          items:
+            type: string
+          type: array
+          title: Tags
+      type: object
+      required:
+      - title
+      - description_markdown
+      - start_date_time
+      - location
+      title: EventCreate
+      description: Payload for creating an event (NGO questionnaire / form).
+    EventDetail:
+      properties:
+        id:
+          $ref: '#/components/schemas/PydanticObjectId'
+        title:
+          type: string
+          title: Title
+        description_markdown:
+          type: string
+          title: Description Markdown
+        poster_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Poster Url
+        organization_id:
+          $ref: '#/components/schemas/PydanticObjectId'
+        organization_name:
+          type: string
+          title: Organization Name
+        organizer:
+          anyOf:
+          - $ref: '#/components/schemas/UserPublic'
+          - type: 'null'
+        start_date_time:
+          type: string
+          format: date-time
+          title: Start Date Time
+        end_date_time:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Time
+        is_multiday:
+          type: boolean
+          title: Is Multiday
+          default: false
+        days_of_week:
+          items:
+            type: string
+          type: array
+          title: Days Of Week
+        location:
+          type: string
+          title: Location
+        is_reimbursable:
+          type: boolean
+          title: Is Reimbursable
+          default: false
+        tags:
+          items:
+            type: string
+          type: array
+          title: Tags
+        likes_count:
+          type: integer
+          title: Likes Count
+          default: 0
+        is_liked:
+          type: boolean
+          title: Is Liked
+          default: false
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        comments:
+          items:
+            $ref: '#/components/schemas/CommentPublic'
+          type: array
+          title: Comments
+      type: object
+      required:
+      - id
+      - title
+      - description_markdown
+      - organization_id
+      - organization_name
+      - start_date_time
+      - location
+      - created_at
+      - updated_at
+      title: EventDetail
+      description: Full event details including markdown body and comments.
+    EventListResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/EventCard'
+          type: array
+          title: Items
+        total:
+          type: integer
+          minimum: 0.0
+          title: Total
+        page:
+          type: integer
+          minimum: 1.0
+          title: Page
+        limit:
+          type: integer
+          minimum: 1.0
+          title: Limit
+        pages:
+          type: integer
+          minimum: 0.0
+          title: Pages
+      type: object
+      required:
+      - items
+      - total
+      - page
+      - limit
+      - pages
+      title: EventListResponse
+      description: Paginated list of event cards.
+    EventUpdate:
+      properties:
+        title:
+          anyOf:
+          - type: string
+            maxLength: 300
+            minLength: 1
+          - type: 'null'
+          title: Title
+        description_markdown:
+          anyOf:
+          - type: string
+            minLength: 1
+          - type: 'null'
+          title: Description Markdown
+        poster_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Poster Url
+        start_date_time:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Time
+        end_date_time:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Time
+        is_multiday:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Multiday
+        days_of_week:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Days Of Week
+        location:
+          anyOf:
+          - type: string
+            maxLength: 500
+            minLength: 1
+          - type: 'null'
+          title: Location
+        is_reimbursable:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Reimbursable
+        tags:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Tags
+      type: object
+      title: EventUpdate
+      description: Partial update payload for an owned event.
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    LikeToggleResponse:
+      properties:
+        event_id:
+          $ref: '#/components/schemas/PydanticObjectId'
+        liked:
+          type: boolean
+          title: Liked
+        likes_count:
+          type: integer
+          title: Likes Count
+      type: object
+      required:
+      - event_id
+      - liked
+      - likes_count
+      title: LikeToggleResponse
+      description: Result of toggling a like on an event.
+    LoginRequest:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+        password:
+          type: string
+          maxLength: 128
+          minLength: 1
+          title: Password
+      type: object
+      required:
+      - email
+      - password
+      title: LoginRequest
+      description: Login credentials.
+    MessageResponse:
+      properties:
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - message
+      title: MessageResponse
+      description: Simple message payload.
+    NGORegisterRequest:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+        password:
+          type: string
+          maxLength: 128
+          minLength: 8
+          title: Password
+        full_name:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Full Name
+        organization_name:
+          type: string
+          maxLength: 300
+          minLength: 1
+          title: Organization Name
+        logo_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Logo Url
+        contact_info:
+          anyOf:
+          - type: string
+            maxLength: 500
+          - type: 'null'
+          title: Contact Info
+        description:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Description
+      type: object
+      required:
+      - email
+      - password
+      - full_name
+      - organization_name
+      title: NGORegisterRequest
+      description: Registration payload for an NGO organizer.
+    PydanticObjectId:
+      type: string
+      maxLength: 24
+      minLength: 24
+      pattern: ^[0-9a-f]{24}$
+      example: 5eb7cf5a86d9755df3a6c593
+    TokenResponse:
+      properties:
+        access_token:
+          type: string
+          title: Access Token
+        token_type:
+          type: string
+          title: Token Type
+          default: bearer
+        role:
+          $ref: '#/components/schemas/UserRole'
+      type: object
+      required:
+      - access_token
+      - role
+      title: TokenResponse
+      description: JWT access token response.
+    UploadResultResponse:
+      properties:
+        image_id:
+          type: string
+          title: Image Id
+        public_url:
+          type: string
+          title: Public Url
+        variants:
+          items:
+            type: string
+          type: array
+          title: Variants
+      type: object
+      required:
+      - image_id
+      - public_url
+      title: UploadResultResponse
+      description: Result after a server-side multipart upload to Cloudflare Images.
+    UserPublic:
+      properties:
+        id:
+          $ref: '#/components/schemas/PydanticObjectId'
+        email:
+          type: string
+          format: email
+          title: Email
+        role:
+          $ref: '#/components/schemas/UserRole'
+        full_name:
+          type: string
+          title: Full Name
+        organization_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Organization Name
+        logo_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Logo Url
+        contact_info:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Contact Info
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+      type: object
+      required:
+      - id
+      - email
+      - role
+      - full_name
+      title: UserPublic
+      description: Public user profile returned by `/auth/me` and nested in responses.
+    UserRegisterRequest:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+        password:
+          type: string
+          maxLength: 128
+          minLength: 8
+          title: Password
+        full_name:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Full Name
+      type: object
+      required:
+      - email
+      - password
+      - full_name
+      title: UserRegisterRequest
+      description: Registration payload for a regular USER.
+    UserRole:
+      type: string
+      enum:
+      - USER
+      - NGO
+      title: UserRole
+      description: Application user roles.
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+  securitySchemes:
+    HTTPBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Paste the JWT access token obtained from `/auth/login`.
+tags:
+- name: Authentication
+  description: Registration, login, and current-user profile
+- name: Events
+  description: Event listing, filtering, CRUD, and likes
+- name: Comments
+  description: Public and organizer-only comments
+- name: Media
+  description: Cloudflare Images direct upload & multipart upload
+- name: Health
+  description: Liveness / readiness probes
+security:
+- HTTPBearer: []
